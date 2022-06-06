@@ -3,6 +3,7 @@ using System.Net;
 using Newtonsoft.Json;
 using ItemApi.Models;
 using Microsoft.AspNetCore.Cors;
+using System.Data;
 namespace ItemApi.Controllers;
 
 [ApiController]
@@ -11,20 +12,36 @@ namespace ItemApi.Controllers;
 //[DisableCors]
 public class ItemsController : ControllerBase
 {
+    private readonly ItemApiContext _ctx;
+    public ItemsController(ItemApiContext ctx)
+    {
+        _ctx = ctx;
+    }
+
     [EnableCors("TestPolicy")]
 
     [HttpGet]
-    public IEnumerable<Item> GetItems()
+    public IQueryable<Item> GetItems()
     {
-        List<Item> items = ListOfItems();
+        var items = _ctx.Set<Item>();
         return items;
     }
 
-
-    private List<Item> ListOfItems()
+    [EnableCors("TestPolicy")]
+    [HttpPut]
+    public IActionResult PutItems([FromBody] Item i)
     {
-        var json = new WebClient().DownloadString("https://my-json-server.typicode.com/danielcontreras-ppg/myjsonserver-lfaitems/items");
-        var items = JsonConvert.DeserializeObject<List<Item>>(json);
-        return items;
+        var item = _ctx.Items.Where(itm => itm.itemcode == i.itemcode).FirstOrDefault();
+        if(item == null)
+        {
+            return NotFound();
+        }
+        item.technicalgroup = i.technicalgroup;
+
+        _ctx.Entry(item).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+        bool a =_ctx.ChangeTracker.HasChanges(); 
+        _ctx.SaveChanges();
+
+        return new NoContentResult();
     }
 }
